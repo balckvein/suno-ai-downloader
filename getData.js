@@ -1,4 +1,4 @@
-// login to https://suno.com/me
+// Login to https://suno.com/me
 copy(
   "song_name,song_url,song_prompt\n" +
     [
@@ -11,8 +11,14 @@ copy(
       .filter((x) => x.value.audio_url)
       .map((x) => {
         const title = x.value.title.trim() || x.value.id;
-        // Format filename: lowercase, replace spaces with dashes
-        const formattedTitle = title.toLowerCase().replace(/\s+/g, "-");
+        // Generate random 5-character hash
+        const hash = Math.random().toString(36).substring(2, 7);
+        // Get UUID from the song's ID
+        const uuid = x.value.id;
+        // Format filename: lowercase, replace spaces with dashes, add id and hash
+        const formattedTitle = `${title
+          .toLowerCase()
+          .replace(/\s+/g, "-")}-id-${hash}`;
 
         // Find the description from the DOM using the song ID
         const songElement = document.querySelector(
@@ -25,8 +31,11 @@ copy(
           ? descriptionSpan.getAttribute("title")
           : "";
 
+        // Include original UUID filename in the description
+        const fullDescription = `Original filename: ${uuid}.mp3\n\nPrompt:\n${description}`;
+
         // Always wrap description in quotes for consistency
-        return `${formattedTitle}.mp3,${x.value.audio_url},"${description}"`;
+        return `${formattedTitle}.mp3,${x.value.audio_url},"${fullDescription}"`;
       })
       .join("\n")
 );
