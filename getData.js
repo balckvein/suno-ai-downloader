@@ -1,7 +1,8 @@
 // Login to https://suno.com/me
 copy(
-  "song_name,song_url,song_prompt\n" +
-    [
+  [
+    "song_name,song_url,song_prompt",
+    ...[
       ...$('[role="grid"]')[
         Object.keys($('[role="grid"]')).filter((x) =>
           x.startsWith("__reactProps")
@@ -11,8 +12,8 @@ copy(
       .filter((x) => x.value.audio_url)
       .map((x) => {
         const title = x.value.title.trim() || x.value.id;
-        // Generate random 5-character hash
-        const hash = Math.random().toString(36).substring(2, 7);
+        // Use a hash of the song's ID for consistency
+        const hash = x.value.id.slice(0, 5); // Use the first 5 characters of the ID
         // Get UUID from the song's ID
         const uuid = x.value.id;
         // Format filename: lowercase, replace spaces with dashes, add id and hash
@@ -24,18 +25,25 @@ copy(
         const songElement = document.querySelector(
           `[data-clip-id="${x.value.id}"]`
         );
-        const descriptionSpan = Array.from(
-          songElement.querySelectorAll("span[title]")
-        ).find((span) => span.textContent.trim().length > 50);
-        const description = descriptionSpan
-          ? descriptionSpan.getAttribute("title")
-          : "";
+        let description = "";
+        if (songElement) {
+          const descriptionSpan = Array.from(
+            songElement.querySelectorAll("span[title]")
+          ).find((span) => span.textContent.trim().length > 50);
+          description = descriptionSpan
+            ? descriptionSpan.getAttribute("title").trim()
+            : "No description available";
+        }
 
         // Include original UUID filename in the description
         const fullDescription = `Original filename: ${uuid}.mp3\n\nPrompt:\n${description}`;
 
-        // Always wrap description in quotes for consistency
-        return `${formattedTitle}.mp3,${x.value.audio_url},"${fullDescription}"`;
-      })
-      .join("\n")
+        // Always wrap description in quotes for consistency, and ensure no trailing newline
+        return `${formattedTitle}.mp3,${
+          x.value.audio_url
+        },"${fullDescription.replace(/\n$/, "")}"`;
+      }),
+  ]
+    .join("\n")
+    .trim() // Trim any extra whitespace/newlines from the final output
 );
