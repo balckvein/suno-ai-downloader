@@ -38,10 +38,15 @@ copy(
         // Include original UUID filename in the description
         const fullDescription = `Original filename: ${uuid}.mp3\n\nPrompt:\n${description}`;
 
-        // Always wrap description in quotes for consistency, and ensure no trailing newline
+        // Escape double quotes for CSV and remove any trailing newline
+        const escapedDescription = fullDescription
+          .replace(/"/g, '""')
+          .replace(/\n$/, "");
+
+        // Always wrap description in quotes for consistency
         return `${formattedTitle}.mp3,${
           x.value.audio_url
-        },"${fullDescription.replace(/\n$/, "")}"`;
+        },"${escapedDescription}"`;
       }),
   ]
     .join("\n")
