@@ -19,6 +19,8 @@ A set of tools to download your music from Suno.ai with organized filenames and 
 3. Copy and paste the contents of `getData.js` into the console
 4. Copy the output and save it to `songs.csv`
 
+You can skip this step if you run `suno-downloader.py --all`.
+
 The script will generate a CSV with:
 - Formatted filenames (with random ID)
 - Download URLs
@@ -29,6 +31,15 @@ The script will generate a CSV with:
 Run the Python downloader:
 ```bash
 python3 suno-downloader.py
+```
+
+Options:
+```bash
+# Fetch every track using the API
+python3 suno-downloader.py --all
+
+# Use a custom CSV file
+python3 suno-downloader.py --csv my_songs.csv
 ```
 
 ### Features
