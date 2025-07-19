@@ -1,16 +1,76 @@
 #!/usr/bin/env python3
 
+import argparse
 import csv
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from tqdm import tqdm
-import requests
 from pathlib import Path
-import sys
+
+import requests
+from tqdm import tqdm
 
 MAX_RETRIES = 3
 MAX_WORKERS = 4
+
+
+def fetch_all_songs():
+    """Retrieve all songs using the Suno API with basic pagination."""
+    songs = []
+    cursor = ""
+    session = requests.Session()
+    while True:
+        params = {"cursor": cursor} if cursor else {}
+        try:
+            resp = session.get(
+                "https://studio-api.suno.ai/api/feed/tracks", params=params
+            )
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"Error fetching songs: {e}")
+            break
+
+        data = resp.json()
+        for item in data.get("items", []):
+            title = (item.get("title") or item.get("id", "")).strip()
+            uuid = item.get("id", "")
+            if not uuid:
+                continue
+            if not title:
+                title = uuid
+            hash_id = uuid[:5]
+            formatted_title = f"{title.lower().replace(' ', '-')}-id-{hash_id}.mp3"
+            description = item.get("description", "No description available")
+            full_desc = f"Original filename: {uuid}.mp3\n\nPrompt:\n{description}"
+            songs.append([formatted_title, item.get("audio_url", ""), full_desc])
+
+        cursor = data.get("nextCursor") or data.get("next_cursor")
+        if not cursor:
+            break
+    return songs
+
+
+def read_csv(csv_file: str):
+    """Read song data from a CSV file."""
+    with open(csv_file, "r", encoding="utf-8") as file:
+        reader = csv.reader(file, quoting=csv.QUOTE_ALL, skipinitialspace=True)
+        next(reader, None)
+        return [row for row in reader if row and len(row) == 3]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Download songs from Suno.ai")
+    parser.add_argument(
+        "--all", action="store_true", help="Retrieve all songs using the API"
+    )
+    parser.add_argument(
+        "--csv",
+        default="songs.csv",
+        metavar="FILE",
+        help="CSV file containing songs (default: songs.csv)",
+    )
+    return parser.parse_args()
 
 
 def download_file(url, filename, total_size=None):
@@ -82,29 +142,28 @@ def process_song(row):
 
 def main():
     """Main execution function."""
+    args = parse_args()
+
     # Create songs directory if it doesn't exist
     os.makedirs("songs", exist_ok=True)
 
-    # Read the CSV file
-    try:
-        with open("songs.csv", "r", encoding="utf-8") as file:
-            # Use csv.reader with proper quoting and filtering
-            reader = csv.reader(file, quoting=csv.QUOTE_ALL, skipinitialspace=True)
-            next(reader)  # Skip header
-            # Filter out empty rows and validate row length
-            songs = [row for row in reader if row and len(row) == 3]
-    except FileNotFoundError:
-        print("Error: songs.csv not found")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error reading CSV: {str(e)}")
-        sys.exit(1)
+    if args.all:
+        songs = fetch_all_songs()
+    else:
+        try:
+            songs = read_csv(args.csv)
+        except FileNotFoundError:
+            print(f"Error: {args.csv} not found")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error reading CSV: {e}")
+            sys.exit(1)
 
     if not songs:
-        print("No valid songs found in CSV")
+        print("No songs found to process")
         sys.exit(1)
 
-    print(f"Found {len(songs)} valid songs to process")
+    print(f"Found {len(songs)} songs to process")
 
     # Process songs in parallel
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
